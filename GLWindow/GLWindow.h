@@ -2,6 +2,7 @@
 #define GL_WINDOW
 
 #include <windows.h>
+#include <windowsx.h>
 
 // #if defined(WIN32) || defined(__WIN32) || defined(__WIN32__)
 
@@ -12,7 +13,14 @@ class GLWindow
 		WNDCLASS wClass;
 	
 	public:
-		struct Event;
+		enum EventType { GLEventEmpty, GLMouseMoveEvent, GLMouseButtonEvent };
+		enum MouseButton { MBLeft, MBMiddle, MBRight };
+		
+		class Event;
+		
+		struct KeyPressEvent;
+		struct MouseMoveEvent;
+		struct MouseButtonEvent;
 		
 		GLWindow();
 		~GLWindow();
@@ -20,9 +28,40 @@ class GLWindow
 		GLWindow::Event PollEvent();
 };
 
-struct GLWindow::Event
+class GLWindow::Event
 {
-	bool isActive;
+	protected:
+		MSG msg;
+		GLWindow::EventType type;
+		
+		friend class GLWindow;
+		
+	public:
+		Event();
+		
+		bool isActive;
+		GLWindow::EventType Type();
+		
+		GLWindow::MouseMoveEvent MouseMoveEvent();
+		GLWindow::MouseButtonEvent MouseButtonEvent();
+};
+
+struct GLWindow::KeyPressEvent
+{
+	//
+};
+
+struct GLWindow::MouseMoveEvent
+{
+	bool isValid;
+	int x, y;
+};
+
+struct GLWindow::MouseButtonEvent
+{
+	bool isValid, isPressed;
+	int x, y;
+	GLWindow::MouseButton button;
 };
 
 #endif
