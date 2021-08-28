@@ -3,18 +3,21 @@
 
 #include <windows.h>
 #include <windowsx.h>
+#include <gl/gl.h>
 
 // #if defined(WIN32) || defined(__WIN32) || defined(__WIN32__)
 
 class GLWindow
 {
 	private:
+		HDC hdc;
 		HWND hWnd;
 		WNDCLASS wClass;
+		HGLRC glContext;
 	
 	public:
-		enum EventType { GLEventEmpty, GLMouseMoveEvent, GLMouseButtonEvent };
-		enum MouseButton { MBLeft, MBMiddle, MBRight };
+		enum EventType { EventEmptyType, MouseMoveEventType, MouseButtonEventType };
+		enum MouseButton { MouseButtonLeft, MouseButtonMiddle, MouseButtonRight };
 		
 		class Event;
 		
@@ -24,6 +27,13 @@ class GLWindow
 		
 		GLWindow();
 		~GLWindow();
+		
+		void Show();
+		void Hide();
+		
+		void SwapGLBuffers();
+		
+		void MakeGLContextCurrent();
 		
 		GLWindow::Event PollEvent();
 };
@@ -46,11 +56,6 @@ class GLWindow::Event
 		GLWindow::MouseButtonEvent MouseButtonEvent();
 };
 
-struct GLWindow::KeyPressEvent
-{
-	//
-};
-
 struct GLWindow::MouseMoveEvent
 {
 	bool isValid;
@@ -62,6 +67,11 @@ struct GLWindow::MouseButtonEvent
 	bool isValid, isPressed;
 	int x, y;
 	GLWindow::MouseButton button;
+};
+
+struct GLWindow::KeyPressEvent
+{
+	//
 };
 
 #endif

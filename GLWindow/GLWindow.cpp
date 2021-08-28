@@ -25,33 +25,81 @@ GLWindow::GLWindow()
 	
 	// Create and show window
 	hWnd = CreateWindow(wClass.lpszClassName, "Window Title", WS_OVERLAPPED, 100, 100, 800, 600, (HWND)NULL, NULL, hInstance, NULL);
+	hdc = GetDC(hWnd);
 	
-	ShowWindow(hWnd, SW_NORMAL);
+	PIXELFORMATDESCRIPTOR pfd = {
+		sizeof(PIXELFORMATDESCRIPTOR), //  size of this pfd
+		1, // version number
+		PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER, // support window, OpenGL, double buffered
+		PFD_TYPE_RGBA, // RGBA type
+		24, // 24-bit color depth
+		0, 0, 0, 0, 0, 0, // color bits ignored
+		0, // no alpha buffer
+		0, // shift bit ignored
+		0, // no accumulation buffer
+		0, 0, 0, 0, // accum bits ignored
+		32, // 32-bit z-buffer
+		0, // no stencil buffer
+		0, // no auxiliary buffer
+		PFD_MAIN_PLANE, // main layer
+		0, // reserved
+		0, 0, 0 // layer masks ignored
+	};
+	
+	int iPixelFormat; 
+	
+	iPixelFormat = ChoosePixelFormat(hdc, &pfd);
+	
+	SetPixelFormat(hdc, iPixelFormat, &pfd);
+	
+	glContext = wglCreateContext(hdc);
 }
 
 GLWindow::~GLWindow()
 {
+	if (wglGetCurrentContext() == glContext) { wglMakeCurrent(NULL, NULL); }
+	wglDeleteContext(glContext);
 	DestroyWindow(hWnd);
+}
+
+void GLWindow::Show()
+{
+	ShowWindow(hWnd, SW_SHOWDEFAULT);
+}
+
+void GLWindow::Hide()
+{
+	ShowWindow(hWnd, SW_HIDE);
+}
+
+void GLWindow::SwapGLBuffers()
+{
+	SwapBuffers(hdc);
+}
+
+void GLWindow::MakeGLContextCurrent()
+{
+	wglMakeCurrent(hdc, glContext);
 }
 
 GLWindow::Event GLWindow::PollEvent()
 {
 	GLWindow::Event event;
-	event.type = GLWindow::EventType::GLEventEmpty;
+	event.type = GLWindow::EventEmptyType;
+	
+	if (IsWindowVisible(hWnd) > 0) {
+	} else { event.isActive = false; }
 	
 	// Get messages intended for this window
 	if (PeekMessage(&event.msg, hWnd, 0, 0, PM_REMOVE) > 0)
 	{
 		// Find when window close request is made
-		if (event.msg.message == WM_CLOSE)
+		if (IsWindowVisible(hWnd) > 0)
 		{
-			event.isActive = false;
-			DestroyWindow(hWnd);
-		} else {
 			switch (event.msg.message)
 			{
 				case WM_MOUSEMOVE:
-					event.type = GLWindow::EventType::GLMouseMoveEvent;
+					event.type = GLWindow::MouseMoveEventType;
 				break;
 				case WM_LBUTTONUP:
 				case WM_MBUTTONUP:
@@ -59,10 +107,10 @@ GLWindow::Event GLWindow::PollEvent()
 				case WM_LBUTTONDOWN:
 				case WM_MBUTTONDOWN:
 				case WM_RBUTTONDOWN:
-					event.type = GLWindow::EventType::GLMouseButtonEvent;
+					event.type = GLWindow::MouseButtonEventType;
 				break;
 			}
-		}
+		} else { event.isActive = false; }
 		
 		// Translate keys with modifiers
 		TranslateMessage(&event.msg);
@@ -71,7 +119,7 @@ GLWindow::Event GLWindow::PollEvent()
 		DispatchMessage(&event.msg);
 	}
 	
-	//if (msg.message != WM_PAINT) { printf("%i %i\n", msg.hwnd, msg.message); }
+	//if (event.msg.message != WM_PAINT) { printf("%i %i\n", event.msg.hwnd, event.msg.message); }
 	
 	return event;
 }
@@ -90,7 +138,7 @@ GLWindow::MouseMoveEvent GLWindow::Event::MouseMoveEvent()
 {
 	GLWindow::MouseMoveEvent event;
 	
-	if (type == GLWindow::EventType::GLMouseMoveEvent)
+	if (type == GLWindow::MouseMoveEventType)
 	{
 		event.isValid = true;
 		event.x = GET_X_LPARAM(msg.lParam);
@@ -104,7 +152,7 @@ GLWindow::MouseButtonEvent GLWindow::Event::MouseButtonEvent()
 {
 	GLWindow::MouseButtonEvent event;
 	
-	if (type == GLWindow::EventType::GLMouseButtonEvent)
+	if (type == GLWindow::MouseButtonEventType)
 	{
 		event.isValid = true;
 		event.x = GET_X_LPARAM(msg.lParam);
@@ -112,12 +160,12 @@ GLWindow::MouseButtonEvent GLWindow::Event::MouseButtonEvent()
 		
 		switch (msg.message)
 		{
-			case WM_LBUTTONUP: event.button = GLWindow::MouseButton::MBLeft; event.isPressed = false; break;
-			case WM_MBUTTONUP: event.button = GLWindow::MouseButton::MBMiddle; event.isPressed = false; break;
-			case WM_RBUTTONUP: event.button = GLWindow::MouseButton::MBRight; event.isPressed = false; break;
-			case WM_LBUTTONDOWN: event.button = GLWindow::MouseButton::MBLeft; event.isPressed = true; break;
-			case WM_MBUTTONDOWN: event.button = GLWindow::MouseButton::MBMiddle; event.isPressed = true; break;
-			case WM_RBUTTONDOWN: event.button = GLWindow::MouseButton::MBRight; event.isPressed = true; break;
+			case WM_LBUTTONUP: event.button = GLWindow::MouseButtonLeft; event.isPressed = false; break;
+			case WM_MBUTTONUP: event.button = GLWindow::MouseButtonMiddle; event.isPressed = false; break;
+			case WM_RBUTTONUP: event.button = GLWindow::MouseButtonRight; event.isPressed = false; break;
+			case WM_LBUTTONDOWN: event.button = GLWindow::MouseButtonLeft; event.isPressed = true; break;
+			case WM_MBUTTONDOWN: event.button = GLWindow::MouseButtonMiddle; event.isPressed = true; break;
+			case WM_RBUTTONDOWN: event.button = GLWindow::MouseButtonRight; event.isPressed = true; break;
 		}
 	} else { event.isValid = false; }
 	
@@ -129,10 +177,8 @@ LRESULT CALLBACK GLWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	// When user requests to close the window
 	if (msg == WM_CLOSE)
 	{
-		// Send WM_CLOSE to be handled by PeekMessage above
-		// For whatever reason this message is not initally passed to the above, need to do this manually
-		// Don't need to destroy the window as this happens in the above
-		PostMessage(hWnd, WM_CLOSE, wParam, lParam);
+		// Don't need to destroy the window as this happens when the GLWindow instance is destroyed
+		ShowWindow(hWnd, SW_HIDE);
 		return 0;
 	}
 	
