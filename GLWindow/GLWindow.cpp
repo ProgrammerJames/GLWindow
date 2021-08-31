@@ -3,8 +3,15 @@
 
 LRESULT CALLBACK GLWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-GLWindow::GLWindow()
+GLWindow::Window::Window()
 {
+	exists = false;
+}
+
+void GLWindow::Window::create(unsigned int width, unsigned int height, const char * title)
+{
+	if (exists) { return; }
+	
 	HINSTANCE hInstance = GetModuleHandle(NULL);
 	
 	// Register Window Class
@@ -21,10 +28,10 @@ GLWindow::GLWindow()
 	wClass.lpszMenuName = NULL;
 	wClass.lpszClassName = "GLWindowClass";
 	
-	if (!RegisterClass(&wClass)) { /*return;*/ }
+	if (!RegisterClass(&wClass)) { return; }
 	
 	// Create and show window
-	hWnd = CreateWindow(wClass.lpszClassName, "Window Title", WS_OVERLAPPED, 100, 100, 800, 600, (HWND)NULL, NULL, hInstance, NULL);
+	hWnd = CreateWindow(wClass.lpszClassName, title, WS_OVERLAPPEDWINDOW, 100, 100, width, height, (HWND)NULL, NULL, hInstance, NULL);
 	hdc = GetDC(hWnd);
 	
 	PIXELFORMATDESCRIPTOR pfd = {
@@ -53,53 +60,73 @@ GLWindow::GLWindow()
 	SetPixelFormat(hdc, iPixelFormat, &pfd);
 	
 	glContext = wglCreateContext(hdc);
+	
+	lastEvent.isActive = true;
+	exists = true;
 }
 
-GLWindow::~GLWindow()
+void GLWindow::Window::destroy()
 {
-	if (wglGetCurrentContext() == glContext) { wglMakeCurrent(NULL, NULL); }
-	wglDeleteContext(glContext);
-	DestroyWindow(hWnd);
+	if (exists)
+	{
+		if (wglGetCurrentContext() == glContext) { wglMakeCurrent(NULL, NULL); }
+		wglDeleteContext(glContext);
+		DestroyWindow(hWnd);
+		lastEvent.isActive = false;
+		exists = false;
+	}
 }
 
-void GLWindow::Show()
+void GLWindow::Window::show()
 {
-	ShowWindow(hWnd, SW_SHOWDEFAULT);
+	if (exists)
+	{
+		ShowWindow(hWnd, SW_SHOWDEFAULT);
+	}
 }
 
-void GLWindow::Hide()
+void GLWindow::Window::hide()
 {
-	ShowWindow(hWnd, SW_HIDE);
+	if (exists)
+	{
+		ShowWindow(hWnd, SW_HIDE);
+	}
 }
 
-void GLWindow::SwapGLBuffers()
+void GLWindow::Window::swapGLBuffers()
 {
-	SwapBuffers(hdc);
+	if (exists)
+	{
+		SwapBuffers(hdc);
+	}
 }
 
-void GLWindow::MakeGLContextCurrent()
+void GLWindow::Window::makeGLContextCurrent()
 {
-	wglMakeCurrent(hdc, glContext);
+	if (exists)
+	{
+		wglMakeCurrent(hdc, glContext);
+	}
 }
 
-GLWindow::Event GLWindow::PollEvent()
+bool GLWindow::Window::pollEvent()
 {
-	GLWindow::Event event;
-	event.type = GLWindow::EventEmptyType;
+	lastEvent.type = GLWindow::EventEmptyType;
+	if (!exists) { return false; }
 	
 	if (IsWindowVisible(hWnd) > 0) {
-	} else { event.isActive = false; }
+	} else { lastEvent.isActive = false; }
 	
 	// Get messages intended for this window
-	if (PeekMessage(&event.msg, hWnd, 0, 0, PM_REMOVE) > 0)
+	if (PeekMessage(&lastEvent.msg, hWnd, 0, 0, PM_REMOVE) > 0)
 	{
 		// Find when window close request is made
 		if (IsWindowVisible(hWnd) > 0)
 		{
-			switch (event.msg.message)
+			switch (lastEvent.msg.message)
 			{
 				case WM_MOUSEMOVE:
-					event.type = GLWindow::MouseMoveEventType;
+					lastEvent.type = GLWindow::MouseMoveEventType;
 				break;
 				case WM_LBUTTONUP:
 				case WM_MBUTTONUP:
@@ -107,21 +134,21 @@ GLWindow::Event GLWindow::PollEvent()
 				case WM_LBUTTONDOWN:
 				case WM_MBUTTONDOWN:
 				case WM_RBUTTONDOWN:
-					event.type = GLWindow::MouseButtonEventType;
+					lastEvent.type = GLWindow::MouseButtonEventType;
 				break;
 			}
-		} else { event.isActive = false; }
+		} else { lastEvent.isActive = false; }
 		
 		// Translate keys with modifiers
-		TranslateMessage(&event.msg);
+		TranslateMessage(&lastEvent.msg);
 		
 		// Send message to message callback proceedure (GLWindowProc)
-		DispatchMessage(&event.msg);
+		DispatchMessage(&lastEvent.msg);
 	}
 	
 	//if (event.msg.message != WM_PAINT) { printf("%i %i\n", event.msg.hwnd, event.msg.message); }
 	
-	return event;
+	return lastEvent.isActive;
 }
 
 GLWindow::Event::Event()

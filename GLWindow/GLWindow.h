@@ -7,35 +7,18 @@
 
 // #if defined(WIN32) || defined(__WIN32) || defined(__WIN32__)
 
-class GLWindow
+namespace GLWindow
 {
-	private:
-		HDC hdc;
-		HWND hWnd;
-		WNDCLASS wClass;
-		HGLRC glContext;
+	enum EventType { EventEmptyType, MouseMoveEventType, MouseButtonEventType };
+	enum MouseButton { MouseButtonLeft, MouseButtonMiddle, MouseButtonRight };
 	
-	public:
-		enum EventType { EventEmptyType, MouseMoveEventType, MouseButtonEventType };
-		enum MouseButton { MouseButtonLeft, MouseButtonMiddle, MouseButtonRight };
-		
-		class Event;
-		
-		struct KeyPressEvent;
-		struct MouseMoveEvent;
-		struct MouseButtonEvent;
-		
-		GLWindow();
-		~GLWindow();
-		
-		void Show();
-		void Hide();
-		
-		void SwapGLBuffers();
-		
-		void MakeGLContextCurrent();
-		
-		GLWindow::Event PollEvent();
+	class Window;
+	
+	class Event;
+	
+	struct KeyPressEvent;
+	struct MouseMoveEvent;
+	struct MouseButtonEvent;
 };
 
 class GLWindow::Event
@@ -44,7 +27,7 @@ class GLWindow::Event
 		MSG msg;
 		GLWindow::EventType type;
 		
-		friend class GLWindow;
+		friend class GLWindow::Window;
 		
 	public:
 		Event();
@@ -54,6 +37,30 @@ class GLWindow::Event
 		
 		GLWindow::MouseMoveEvent MouseMoveEvent();
 		GLWindow::MouseButtonEvent MouseButtonEvent();
+};
+
+class GLWindow::Window
+{
+	private:
+		bool exists;
+		HDC hdc;
+		HWND hWnd;
+		WNDCLASS wClass;
+		HGLRC glContext;
+	
+	public:
+		GLWindow::Event lastEvent;
+	
+		Window();
+		void create(unsigned int w, unsigned int h, const char * t);
+		void destroy();
+		
+		bool pollEvent();
+		
+		void show();
+		void hide();
+		void swapGLBuffers();
+		void makeGLContextCurrent();
 };
 
 struct GLWindow::MouseMoveEvent

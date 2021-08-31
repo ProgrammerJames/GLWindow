@@ -6,35 +6,40 @@
 //
 int main()
 {
-	GLWindow window = GLWindow();
-	GLWindow window2 = GLWindow();
-	GLWindow::Event event;
-	GLWindow::Event event2;
+	GLWindow::Window window = GLWindow::Window();
 	
-	window.Show();
-	window2.Show();
+	window.create(800, 600, "Window Test");
+	window.show();
+	
+	window.makeGLContextCurrent();
+	
+	glClearColor(0.f, 0.1f, 0.25f, 1.f);
 	
 	// Get messages/events intended for each window
-	while (event.isActive || event2.isActive)
+	while (window.lastEvent.isActive)
 	{
-		// Do Stuff
-		if (event.isActive) { event = window.PollEvent(); }
-		if (event2.isActive) { event2 = window2.PollEvent(); }
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		
-		if (event.Type() == GLWindow::MouseMoveEventType)
+		// Do Stuff
+		window.pollEvent();
+		
+		if (window.lastEvent.Type() == GLWindow::MouseMoveEventType)
 		{
-			GLWindow::MouseMoveEvent moveEvent = event.MouseMoveEvent();
+			GLWindow::MouseMoveEvent moveEvent = window.lastEvent.MouseMoveEvent();
 			//printf("%i %i\n", moveEvent.x, moveEvent.y);
 		}
 		
-		if (event.Type() == GLWindow::MouseButtonEventType)
+		if (window.lastEvent.Type() == GLWindow::MouseButtonEventType)
 		{
-			GLWindow::MouseButtonEvent buttonEvent = event.MouseButtonEvent();
+			GLWindow::MouseButtonEvent buttonEvent = window.lastEvent.MouseButtonEvent();
 			//printf("%i %i\n", buttonEvent.button, buttonEvent.isPressed);
 		}
 		
+		window.swapGLBuffers();
 		//printf("%i %i\n", event.isActive, event2.isActive);
 	}
+	
+	window.destroy();
 	
 	return 0;
 }
